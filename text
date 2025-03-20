@@ -1,22 +1,19 @@
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.resolver.DefaultAddressResolverGroup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.*;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
-import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.client.web.server.UnAuthenticatedServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientRepository;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
-import reactor.netty.transport.ClientTransportConnector;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.transport.ClientTransportConnector;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -36,31 +33,52 @@ public class WebClientConfig {
                 .clientId(oauth2ClientProperties.getClientId())
                 .clientSecret(oauth2ClientProperties.getClientSecret())
                 .scope(oauth2ClientProperties.getScopes().toArray(new String[0]))
-                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .build();
 
         return new InMemoryReactiveClientRegistrationRepository(clientRegistration);
     }
 
     @Bean
-    public ServerOAuth2AuthorizedClientRepository authorizedClientRepository() {
-        return new InMemoryReactiveOAuth2AuthorizedClientService(clientRegistrationRepository());
+    public ServerOAuth2AuthorizedClientRepository serverOAuth2AuthorizedClientRepository() {
+        return new ServerOAuth2AuthorizedClientRepository() {
+            @Override
+            public <T extends OAuth2AuthorizedClient> reactor.core.publisher.Mono<T> loadAuthorizedClient(
+                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+
+            @Override
+            public reactor.core.publisher.Mono<Void> saveAuthorizedClient(
+                    OAuth2AuthorizedClient authorizedClient, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+
+            @Override
+            public reactor.core.publisher.Mono<Void> removeAuthorizedClient(
+                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+        };
     }
 
     @Bean
     public ReactiveOAuth2AuthorizedClientManager reactiveAuthorizedClientManager(
-            ReactiveClientRegistrationRepository clientRegistrationRepository) {
+            ReactiveClientRegistrationRepository clientRegistrationRepository,
+            ServerOAuth2AuthorizedClientRepository authorizedClientRepository) {
 
         ReactiveOAuth2AuthorizedClientProvider authorizedClientProvider =
                 ReactiveOAuth2AuthorizedClientProviderBuilder.builder()
                         .clientCredentials()
                         .build();
 
-        AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager authorizedClientManager =
-                new AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, new InMemoryReactiveOAuth2AuthorizedClientService(clientRegistrationRepository));
-
+        DefaultReactiveOAuth2AuthorizedClientManager authorizedClientManager =
+                new DefaultReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientRepository);
         authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+
         return authorizedClientManager;
     }
 
@@ -68,15 +86,14 @@ public class WebClientConfig {
     public WebClient webClient(ReactiveOAuth2AuthorizedClientManager authorizedClientManager) {
         ServerOAuth2AuthorizedClientExchangeFilterFunction oauth2Filter =
                 new ServerOAuth2AuthorizedClientExchangeFilterFunction(authorizedClientManager);
-        oauth2Filter.setDefaultClientRegistrationId("custom-client");
 
-        // Configure HttpClient with timeouts
         HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)  // 10 sec connection timeout
-                .responseTimeout(Duration.ofSeconds(10))  // 10 sec response timeout
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)  // 10s connection timeout
+                .resolver(DefaultAddressResolverGroup.INSTANCE)  // Use JVM DNS resolver
+                .responseTimeout(Duration.ofSeconds(15))  // 15s response timeout
                 .doOnConnected(conn -> 
-                    conn.addHandlerLast(new ReadTimeoutHandler(10, TimeUnit.SECONDS))  // 10 sec read timeout
-                        .addHandlerLast(new WriteTimeoutHandler(10, TimeUnit.SECONDS)) // 10 sec write timeout
+                        conn.addHandlerLast(new ReadTimeoutHandler(15, TimeUnit.SECONDS))  // Read timeout
+                            .addHandlerLast(new WriteTimeoutHandler(15, TimeUnit.SECONDS)) // Write timeout
                 );
 
         return WebClient.builder()
