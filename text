@@ -12,10 +12,11 @@ import org.springframework.security.oauth2.client.web.server.ServerOAuth2Authori
 import org.springframework.security.oauth2.client.web.server.UnAuthenticatedServerOAuth2AuthorizedClientRepository;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.transport.ClientTransportConnector;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.transport.ClientTransportConnector;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import reactor.netty.transport.ClientTransportConnector;
-
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -44,7 +45,7 @@ public class WebClientConfig {
 
     @Bean
     public ServerOAuth2AuthorizedClientRepository authorizedClientRepository() {
-        return new UnAuthenticatedServerOAuth2AuthorizedClientRepository();
+        return new InMemoryReactiveOAuth2AuthorizedClientService(clientRegistrationRepository());
     }
 
     @Bean
@@ -79,7 +80,7 @@ public class WebClientConfig {
                 );
 
         return WebClient.builder()
-                .clientConnector(new reactor.netty.http.client.HttpClientConnector(httpClient))
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .filter(oauth2Filter)
                 .build();
     }
