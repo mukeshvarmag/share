@@ -1,12 +1,86 @@
-In modern software applications, databases play a critical role in managing and updating vast amounts of data. These updates are essential for tasks such as modifying user profiles, updating product inventories, or processing financial transactions. However, the efficiency of database operations can significantly impact application performance and scalability.
-The Inefficiency of Individual .save() Operations
-When handling large datasets, using individual .save() operations for each record can lead to performance bottlenecks. Each .save() operation typically involves:
-Establishing a connection to the database.
-Executing a single SQL query.
-Committing the transaction.
-This approach results in multiple round trips between the application and the database, increasing network latency and consuming more resources. For example, in cases where thousands of records need to be updated, executing individual queries for each record can overwhelm the database and slow down the application. This inefficiency is akin to executing numerous small tasks sequentially rather than grouping them for optimized execution.
-Introducing Batch Processing
-Batch processing addresses these inefficiencies by grouping multiple database operations (e.g., INSERT, UPDATE, DELETE) into a single batch and executing them together. This method reduces the number of database interactions and optimizes resource utilization. Batch processing ensures:
-Fewer network round trips.
-Reduced overhead for establishing connections.
-Improved execution speed due to the database's ability to process grouped operations more efficiently.
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.client.*;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
+import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.reactive.result.method.annotation.ServerOAuth2AuthorizedClientArgumentResolver;
+import org.springframework.web.reactive.function.client.WebClient;
+
+@Configuration
+public class WebClientConfig {
+
+    private final OAuth2ClientProperties oauth2ClientProperties;
+
+    public WebClientConfig(OAuth2ClientProperties oauth2ClientProperties) {
+        this.oauth2ClientProperties = oauth2ClientProperties;
+    }
+
+    @Bean
+    public ReactiveClientRegistrationRepository clientRegistrationRepository() {
+        ClientRegistration clientRegistration = ClientRegistration.withRegistrationId("custom-client")
+                .tokenUri(oauth2ClientProperties.getAccessTokenUri())
+                .clientId(oauth2ClientProperties.getClientId())
+                .clientSecret(oauth2ClientProperties.getClientSecret())
+                .scope(oauth2ClientProperties.getScopes().toArray(new String[0]))
+                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .build();
+
+        return new InMemoryReactiveClientRegistrationRepository(clientRegistration);
+    }
+
+    @Bean
+    public ServerOAuth2AuthorizedClientRepository serverOAuth2AuthorizedClientRepository() {
+        return new ServerOAuth2AuthorizedClientRepository() {
+            @Override
+            public <T extends OAuth2AuthorizedClient> reactor.core.publisher.Mono<T> loadAuthorizedClient(
+                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+
+            @Override
+            public reactor.core.publisher.Mono<Void> saveAuthorizedClient(
+                    OAuth2AuthorizedClient authorizedClient, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+
+            @Override
+            public reactor.core.publisher.Mono<Void> removeAuthorizedClient(
+                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
+                    org.springframework.web.server.ServerWebExchange exchange) {
+                return reactor.core.publisher.Mono.empty();
+            }
+        };
+    }
+
+    @Bean
+    public ReactiveOAuth2AuthorizedClientManager reactiveAuthorizedClientManager(
+            ReactiveClientRegistrationRepository clientRegistrationRepository,
+            ServerOAuth2AuthorizedClientRepository authorizedClientRepository) {
+
+        ReactiveOAuth2AuthorizedClientProvider authorizedClientProvider =
+                ReactiveOAuth2AuthorizedClientProviderBuilder.builder()
+                        .clientCredentials()
+                        .build();
+
+        DefaultReactiveOAuth2AuthorizedClientManager authorizedClientManager =
+                new DefaultReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientRepository);
+        authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+
+        return authorizedClientManager;
+    }
+
+    @Bean
+    public WebClient webClient(ReactiveOAuth2AuthorizedClientManager authorizedClientManager) {
+        ServerOAuth2AuthorizedClientExchangeFilterFunction oauth2Filter =
+                new ServerOAuth2AuthorizedClientExchangeFilterFunction(authorizedClientManager);
+
+        return WebClient.builder()
+                .filter(oauth2Filter)
+                .build();
+    }
+}
