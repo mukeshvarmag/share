@@ -1,104 +1,49 @@
-import io.netty.channel.ChannelOption;
-import io.netty.handler.timeout.ReadTimeoutHandler;
-import io.netty.handler.timeout.WriteTimeoutHandler;
-import io.netty.resolver.DefaultAddressResolverGroup;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.client.*;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
-import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientExchangeFilterFunction;
-import org.springframework.security.oauth2.client.web.reactive.function.client.ServerOAuth2AuthorizedClientRepository;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.http.client.HttpClient;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.boot.web.client.RestClientCustomizer;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+@Component
+public class GlobalRestClientInterceptor implements RestClientCustomizer {
 
-@Configuration
-public class WebClientConfig {
+    private final OAuth2AuthorizedClientService authorizedClientService;
 
-    private final OAuth2ClientProperties oauth2ClientProperties;
-
-    public WebClientConfig(OAuth2ClientProperties oauth2ClientProperties) {
-        this.oauth2ClientProperties = oauth2ClientProperties;
+    public GlobalRestClientInterceptor(OAuth2AuthorizedClientService authorizedClientService) {
+        this.authorizedClientService = authorizedClientService;
     }
 
-    @Bean
-    public ReactiveClientRegistrationRepository clientRegistrationRepository() {
-        ClientRegistration clientRegistration = ClientRegistration.withRegistrationId("custom-client")
-                .tokenUri(oauth2ClientProperties.getAccessTokenUri())
-                .clientId(oauth2ClientProperties.getClientId())
-                .clientSecret(oauth2ClientProperties.getClientSecret())
-                .scope(oauth2ClientProperties.getScopes().toArray(new String[0]))
-                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .build();
-
-        return new InMemoryReactiveClientRegistrationRepository(clientRegistration);
-    }
-
-    @Bean
-    public ServerOAuth2AuthorizedClientRepository serverOAuth2AuthorizedClientRepository() {
-        return new ServerOAuth2AuthorizedClientRepository() {
-            @Override
-            public <T extends OAuth2AuthorizedClient> reactor.core.publisher.Mono<T> loadAuthorizedClient(
-                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
-                    org.springframework.web.server.ServerWebExchange exchange) {
-                return reactor.core.publisher.Mono.empty();
+    @Override
+    public void customize(RestClient.Builder builder) {
+        builder.requestInterceptor((request, body, execution) -> {
+            String token = getAccessToken();
+            if (token != null) {
+                request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
             }
-
-            @Override
-            public reactor.core.publisher.Mono<Void> saveAuthorizedClient(
-                    OAuth2AuthorizedClient authorizedClient, org.springframework.security.core.Authentication principal,
-                    org.springframework.web.server.ServerWebExchange exchange) {
-                return reactor.core.publisher.Mono.empty();
-            }
-
-            @Override
-            public reactor.core.publisher.Mono<Void> removeAuthorizedClient(
-                    String clientRegistrationId, org.springframework.security.core.Authentication principal,
-                    org.springframework.web.server.ServerWebExchange exchange) {
-                return reactor.core.publisher.Mono.empty();
-            }
-        };
+            return execution.execute(request, body);
+        });
     }
 
-    @Bean
-    public ReactiveOAuth2AuthorizedClientManager reactiveAuthorizedClientManager(
-            ReactiveClientRegistrationRepository clientRegistrationRepository,
-            ServerOAuth2AuthorizedClientRepository authorizedClientRepository) {
+    private String getAccessToken() {
+        // Get authentication details
+        OAuth2AuthenticationToken authentication =
+                (OAuth2AuthenticationToken) org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication();
 
-        ReactiveOAuth2AuthorizedClientProvider authorizedClientProvider =
-                ReactiveOAuth2AuthorizedClientProviderBuilder.builder()
-                        .clientCredentials()
-                        .build();
+        if (authentication != null) {
+            String clientRegistrationId = authentication.getAuthorizedClientRegistrationId();
 
-        DefaultReactiveOAuth2AuthorizedClientManager authorizedClientManager =
-                new DefaultReactiveOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientRepository);
-        authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+            // Retrieve the authorized client (token)
+            OAuth2AuthorizedClient authorizedClient =
+                    authorizedClientService.loadAuthorizedClient(clientRegistrationId, authentication.getName());
 
-        return authorizedClientManager;
-    }
+            if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
+                return authorizedClient.getAccessToken().getTokenValue();
+            }
+        }
 
-    @Bean
-    public WebClient webClient(ReactiveOAuth2AuthorizedClientManager authorizedClientManager) {
-        ServerOAuth2AuthorizedClientExchangeFilterFunction oauth2Filter =
-                new ServerOAuth2AuthorizedClientExchangeFilterFunction(authorizedClientManager);
-
-        HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)  // 10s connection timeout
-                .resolver(DefaultAddressResolverGroup.INSTANCE)  // Use JVM DNS resolver
-                .responseTimeout(Duration.ofSeconds(15))  // 15s response timeout
-                .doOnConnected(conn -> 
-                        conn.addHandlerLast(new ReadTimeoutHandler(15, TimeUnit.SECONDS))  // Read timeout
-                            .addHandlerLast(new WriteTimeoutHandler(15, TimeUnit.SECONDS)) // Write timeout
-                );
-
-        return WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .filter(oauth2Filter)
-                .build();
+        return null; // No token available
     }
 }
