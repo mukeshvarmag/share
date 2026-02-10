@@ -1,49 +1,173 @@
-import org.springframework.boot.web.client.RestClientCustomizer;
-import org.springframework.http.HttpHeaders;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+%-------------------------
+% Resume in Latex
+% Author : Mukesh
+%------------------------
 
-@Component
-public class GlobalRestClientInterceptor implements RestClientCustomizer {
+\documentclass[letterpaper,11pt]{article}
 
-    private final OAuth2AuthorizedClientService authorizedClientService;
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
 
-    public GlobalRestClientInterceptor(OAuth2AuthorizedClientService authorizedClientService) {
-        this.authorizedClientService = authorizedClientService;
-    }
 
-    @Override
-    public void customize(RestClient.Builder builder) {
-        builder.requestInterceptor((request, body, execution) -> {
-            String token = getAccessToken();
-            if (token != null) {
-                request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-            }
-            return execution.execute(request, body);
-        });
-    }
+%----------FONT OPTIONS----------
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
 
-    private String getAccessToken() {
-        // Get authentication details
-        OAuth2AuthenticationToken authentication =
-                (OAuth2AuthenticationToken) org.springframework.security.core.context.SecurityContextHolder
-                        .getContext().getAuthentication();
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
 
-        if (authentication != null) {
-            String clientRegistrationId = authentication.getAuthorizedClientRegistrationId();
+\urlstyle{same}
 
-            // Retrieve the authorized client (token)
-            OAuth2AuthorizedClient authorizedClient =
-                    authorizedClientService.loadAuthorizedClient(clientRegistrationId, authentication.getName());
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
 
-            if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
-                return authorizedClient.getAccessToken().getTokenValue();
-            }
-        }
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
 
-        return null; // No token available
-    }
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
 }
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape Goutham Raj Vadthyavath} \\ \vspace{1pt}
+    \small +91 8247436534 $|$ \href{mailto:gouthamkittu111@gmail.com}{\underline{gouthamkittu111@gmail.com}} $|$ 
+\end{center}
+
+\section{professional summary}
+      \resumeItemListStart
+        \resumeItem{Over 3.5 years of experience in risk management, specializing in Java Spring, Spring Boot, web services, and big data technologies. Proficient in Java object-oriented programming (OOP), collections framework, and string manipulation. Adept at designing and implementing robust solutions to mitigate risks and ensure data integrity}
+        \resumeItem{Strong skills in developing and consuming RESTful web services. Experienced SQL developer, adept at working with relational databases. Familiar with continuous integration/continuous deployment (CI/CD) pipelines using tools. Excellent problem-solving skills and ability to work effectively in fast-paced environments.}
+      \resumeItemListEnd
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Software Engineer}{June 2022 -- Present}
+      {Société Générale}{Bengaluru, KA}
+  \resumeSubHeadingListEnd
+
+%-----------PROGRAMMING SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Java, C/C++, SQL} \\
+     \textbf{Frameworks}{: SpringFrameWork, Postman, Spring Test, JUnit, RestAPI, Spring Boot, Apache Spark} \\
+     \textbf{Developer Tools}{: Git, GitHub, GitLab, Jenkins, Maven, Azure, Postman, SonarQube, Sql Developer, WinSCP} \\
+    }}
+ \end{itemize}
+
+
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Indian Institute of Technology roorkee}{7.23/10 GPA}
+      {Bachelor Of Engineering in Electrical Engineering}{Aug. 2018 -- May 2022}
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+          {\textbf{SOLSTIS} $|$ \emph{Rest API,Gen-2 ,Java, Maven, Jenkis, Git,Git Actions ,Angular, SQL Developer}}{}
+          \resumeItemListStart
+            \resumeItem{ Solstis is a solution to manage the private risk reference data and to distribute 
+referential data snapshots (global and local risk) to Internal System (Market and Credit risk)}
+            \resumeItem{GEN-2 MIGRAION : 
+Spearheaded the Gen-2 migration initiative, optimizing application infrastructure and reducing server costs by 30%, resulting in significant operational savings by migrating Gen-1 unix servers to Gen-2 OCS serves using IAC ( terraform and ansible ).
+Designed and implemented scalable solutions during the migration process, ensuring minimal downtime and seamless transition for critical business applications
+Developed multiple Git Action pipelines to Automate Application manual workaround }
+            \resumeItem{OCP MIGRATION (Oracle 19C) : 
+Spearheaded the migration of the application to the Oracle Cloud Platform (OCP) in the non-production environment, ensuring seamless deployment and compatibility with cloud infrastructure. Managed the transfer of data, and configurations to OCP, adhering to best practices and minimizing disruption to ongoing development activities. Following the migration, executed comprehensive application-level end-to-end testing to validate system functionality, performance, and reliability.}
+            \resumeItem{Elasticsearch : 
+Integrated Elasticsearch into the application stack, enabling efficient indexing and real-time search capabilities for large datasets, improving query performance by 40%.
+Designed and optimized Elasticsearch clusters, ensuring high availability and fault tolerance for critical application components.
+Developed Elastic search dashboard to monitor real-time Production status and Alerts.}
+            \resumeItem{Successfully addressed major vulnerabilities identified during weekly security scans by implementing comprehensive remediation measures. This included fixing vulnerabilities across various layers of the infrastructure, encompassing server migration, updating to the latest Linux version, upgrading Java and Tomcat versions}
+          \resumeItemListEnd
+      \resumeProjectHeading
+          {\textbf{BigData Referential} $|$ \emph{Rest API, Java, Spark, Azure}}{}
+          \resumeItemListStart
+            \resumeItem{Bigdata Referential is a referential system that receives data from various sources, transforms and cleanses the data, and loads it into a data lake. The processed data is subsequently utilized by systems such as MPT, Aware, etc}
+            \resumeItem{Improved the CopyReferential API to support enhanced file copying capabilities, enabling the copying of referential data files from any specified date range. The enhancement involved expanding the functionality to retrieve all referentials and facilitate file copying based on user-defined date parameters. Using Swagger, RESTful APIs, Java}
+            \resumeItem{Implemented transformation logic for the Galaxy system to process and transform large datasets using Java and Apache Spark. The transformation logic aimed to enhance data processing efficiency and ensure high-quality data output for subsequent analytics and reporting. Using Java, Apache Spark, Galaxy API}
+          \resumeItemListEnd
+      \resumeProjectHeading
+          {\textbf{springboot crud operation} $|$ \emph{Rest API, Java, Maven, Jenkis, Git, Oracle 19C}}{\underline{POC}} }
+          \resumeItemListStart
+            \resumeItem{Developed a Spring Boot CRUD project interfacing with Oracle 19C via REST APIs; integrated Jenkins for automated CI/CD, ensuring seamless testing and deployment pipelines}
+            \resumeItem{Utilized Java for backend, Spring Boot, and Maven for project management and dependency resolution}
+            \resumeItem{Integrated Oracle 19C database for data storage and retrieval}
+            \resumeItem{Designed and implemented RESTful endpoints for CRUD operations, adhering to RESTful principles}
+            \resumeItem{Integrated Jenkins for automating the build, test, and deployment processes}
+          \resumeItemListEnd
+    \resumeSubHeadingListEnd
+%-------------------------------------------
+\end{document}
